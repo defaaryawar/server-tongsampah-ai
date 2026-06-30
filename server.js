@@ -219,10 +219,49 @@ app.post("/classify", upload.single("photo"), async (req, res) => {
   }
 });
 
+app.post("/update-tong", express.json(), async (req, res) => {
+  const ts = new Date().toISOString();
+  console.log(`\n[${ts}] === /update-tong MULAI ===`);
+
+  const { jarak_organik, jarak_non_organik, status_organik, status_non_organik } = req.body;
+
+  if (jarak_organik === undefined || jarak_non_organik === undefined) {
+    console.error("[TONG] Body tidak lengkap:", req.body);
+    return res.status(400).json({ error: "jarak_organik dan jarak_non_organik wajib diisi" });
+  }
+
+  console.log(`[TONG] Diterima: organik=${jarak_organik}cm (${status_organik}) | non_organik=${jarak_non_organik}cm (${status_non_organik})`);
+
+  try {
+    const payload = JSON.stringify({
+      organik: { jarak_cm: jarak_organik, status: status_organik },
+      non_organik: { jarak_cm: jarak_non_organik, status: status_non_organik },
+    });
+
+    const fbRes = await fetch(`${FIREBASE_URL}/tong.json?auth=${FIREBASE_SECRET}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+    });
+    const fbText = await fbRes.text();
+
+    if (!fbRes.ok) {
+      throw new Error(`Firebase HTTP ${fbRes.status}: ${fbText}`);
+    }
+
+    console.log(`[TONG] Sukses update Firebase: ${fbText}`);
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error(`[TONG] ERROR: ${err.message}`);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ===================== SERVER =====================
 const PORT = process.env.PORT || 3000;
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`\n[SERVER] Jalan di http://0.0.0.0:${PORT}`);
+const server = app.listen(PORT, () => {
+  console.log(`\n[SERVER] Jalan di port ${PORT}`);
   console.log(`[SERVER] FIREBASE_URL: ${FIREBASE_URL}`);
   console.log(`[SERVER] CLOUDINARY_CLOUD_NAME: ${process.env.CLOUDINARY_CLOUD_NAME}`);
   console.log(`[SERVER] GROQ_API_KEY: ${process.env.GROQ_API_KEY ? "SET" : "TIDAK SET"}`);
